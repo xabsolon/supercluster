@@ -1,11 +1,15 @@
+import "dotenv/config";
 import Supercluster from "supercluster";
 import axios from "axios";
 import express from "express";
 
-const index = new Supercluster({ radius: 40, log: true });
+const CLUSTER_RADIUS = 40;
+const BACKEND_URL = process.env.OCI_NA_CESTE_BACKEND_URL;
+
+const index = new Supercluster({ radius: CLUSTER_RADIUS, log: true });
 
 const refreshIndex = async () => {
-  const response = await axios.get("http://147.175.204.92/problemsJson");
+  const response = await axios.get(`${BACKEND_URL}/problemsJson`);
   const data = response.data;
   const bumpsGeoJSON = {
     type: "FeatureCollection",
@@ -32,33 +36,17 @@ const refreshIndex = async () => {
 
 const app = express();
 
-app.get("/refreshIndex", (req, res) => {
-  res.send(
-    index.getClusters(
-      [
-        16.800948490078895, 47.99844205271117, 17.40739729702122,
-        48.26382538929482,
-      ],
-      11
-    )
-  );
+app.get("/refreshIndex", async () => {
+  await refreshIndex();
 });
 
 app.get("/problems", (req, res) => {
   const { zoom, westLng, southLat, eastLng, northLat } = req.query;
-  res.send(
-    index.getClusters(
-      [
-        16.800948490078895, 47.99844205271117, 17.40739729702122,
-        48.26382538929482,
-      ],
-      11
-    )
-  );
-});
-
-const server = app.listen(8080, () => {
-  console.log("Listening on http://localhost:8080");
+  res.send(index.getClusters([westLng, southLat, eastLng, northLat], zoom));
 });
 
 refreshIndex();
+
+app.listen(8080, () => {
+  console.log("Listening on http://localhost:8080");
+});
